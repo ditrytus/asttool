@@ -82,7 +82,7 @@ func FormatStatsVisitor(v *statsVisitor) string {
 type cohesionVisitor struct {
 	fileSet      *token.FileSet
 	pkg          *packages.Package
-	dependencies *simple.UndirectedGraph
+	dependencies *simple.DirectedGraph
 	typesInfo    *types.Info
 
 	referencingObject types.Object
@@ -247,7 +247,7 @@ func NewCohesionVisitor(
 	c := &cohesionVisitor{
 		fileSet:      fileSet,
 		pkg:          pkg,
-		dependencies: simple.NewUndirectedGraph(),
+		dependencies: simple.NewDirectedGraph(),
 		typesInfo:    info,
 	}
 	c.printInfo(info)
@@ -310,7 +310,21 @@ func (c *cohesionVisitor) FormatDependencies() string {
 }
 
 func (c *cohesionVisitor) ConnectedComponents() int {
-	return len(topo.ConnectedComponents(c.dependencies))
+	return len(topo.ConnectedComponents(c.getUndirectedDependencies()))
+}
+
+func (c *cohesionVisitor) getUndirectedDependencies() *simple.UndirectedGraph {
+	undirected := simple.NewUndirectedGraph()
+	nodes := c.dependencies.Nodes()
+	for nodes.Next() {
+		undirected.AddNode(nodes.Node())
+	}
+	edges := c.dependencies.Edges()
+	for edges.Next() {
+		edge := edges.Edge()
+		undirected.SetEdge(undirected.NewEdge(edge.From(), edge.To()))
+	}
+	return undirected
 }
 
 func (c *cohesionVisitor) AverageDegree() float64 {
