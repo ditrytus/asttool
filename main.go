@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 	"gonum.org/v1/gonum/graph/simple"
 	"hash/fnv"
+	"strconv"
 	"strings"
 )
 
@@ -82,6 +83,8 @@ type cohesionVisitor struct {
 	pkg          *packages.Package
 	dependencies *simple.DirectedGraph
 	typesInfo    *types.Info
+
+	referencingObject types.Object
 }
 
 type typeNode struct {
@@ -102,24 +105,36 @@ func (o objectNode) ID() int64 {
 }
 
 func newObjectNode(obj types.Object) objectNode {
-	hash := fnv.New64a()
-	hash.Sum([]byte(obj.Id()))
+	hash := fnv.New64()
+	fmt.Println(obj.Id())
+	hash.Write([]byte(obj.Pkg().Path() + obj.Name() + strconv.Itoa(int(obj.Pos()))))
 	return objectNode{int64(hash.Sum64()), obj}
 }
 
 func (c *cohesionVisitor) Visit(node ast.Node) (w ast.Visitor) {
+	switch n := node.(type) {
+	case *ast.FuncDecl:
+		if obj, ok := c.typesInfo.Defs[n.Name]; ok {
+			return c.childVisitor(obj)
+		}
+	case *ast.TypeSpec:
+		if obj, ok := c.typesInfo.Defs[n.Name]; ok {
+			return c.childVisitor(obj)
+		}
+	}
 	if expr, ok := node.(ast.Expr); ok {
 		info := &types.Info{
-			Defs:       make(map[*ast.Ident]types.Object),
-			Uses:       make(map[*ast.Ident]types.Object),
-			Types:      make(map[ast.Expr]types.TypeAndValue),
-			Implicits:  make(map[ast.Node]types.Object),
-			Selections: make(map[*ast.SelectorExpr]*types.Selection),
+			//Defs:       make(map[*ast.Ident]types.Object),
+			Uses: make(map[*ast.Ident]types.Object),
+			//Types:      make(map[ast.Expr]types.TypeAndValue),
+			//Implicits:  make(map[ast.Node]types.Object),
+			//Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		}
 		err := types.CheckExpr(c.fileSet, c.pkg.Types, node.Pos(), expr, info)
 		if err != nil {
 			return c
 		}
+		c.addUsages(info)
 		fmt.Println(NodeString(c.fileSet, node))
 		c.printInfo(info)
 		return nil
@@ -127,23 +142,40 @@ func (c *cohesionVisitor) Visit(node ast.Node) (w ast.Visitor) {
 	return c
 }
 
+func (c *cohesionVisitor) childVisitor(obj types.Object) *cohesionVisitor {
+	return &cohesionVisitor{
+		fileSet:      c.fileSet,
+		pkg:          c.pkg,
+		dependencies: c.dependencies,
+		typesInfo:    c.typesInfo,
+
+		referencingObject: obj,
+	}
+}
+
 func (c *cohesionVisitor) printInfo(info *types.Info) {
-	fmt.Println("Defs:")
-	for ident, object := range info.Defs {
-		if c.BelongsToPackage(object) {
-			fmt.Println(c.fileSet.Position(ident.Pos()), ident.Name, object)
+	if info.Defs != nil {
+		fmt.Println("Defs:")
+		for ident, object := range info.Defs {
+			if c.BelongsToPackage(object) {
+				fmt.Println(c.fileSet.Position(ident.Pos()), ident.Name, object)
+			}
 		}
 	}
-	fmt.Println("Uses:")
-	for ident, object := range info.Uses {
-		if c.BelongsToPackage(object) {
-			fmt.Println(c.fileSet.Position(ident.Pos()), ident.Name, object)
+	if info.Uses != nil {
+		fmt.Println("Uses:")
+		for ident, object := range info.Uses {
+			if c.BelongsToPackage(object) {
+				fmt.Println(c.fileSet.Position(ident.Pos()), ident.Name, object)
+			}
 		}
 	}
-	fmt.Println("Implicits:")
-	for ident, object := range info.Implicits {
-		if c.BelongsToPackage(object) {
-			fmt.Println(c.fileSet.Position(ident.Pos()), ident, object)
+	if info.Implicits != nil {
+		fmt.Println("Implicits:")
+		for ident, object := range info.Implicits {
+			if c.BelongsToPackage(object) {
+				fmt.Println(c.fileSet.Position(ident.Pos()), ident, object)
+			}
 		}
 	}
 	fmt.Println()
@@ -162,6 +194,44 @@ func (c *cohesionVisitor) BelongsToPackage(obj types.Object) bool {
 	return false
 }
 
+func (c *cohesionVisitor) addUsages(info *types.Info) {
+	if info.Uses == nil {
+		return
+	}
+	for _, object := range info.Uses {
+		if !c.BelongsToPackage(object) {
+			continue
+		}
+		from, ok := c.dependencies.NodeWithID(newObjectNode(c.referencingObject).ID())
+		if ok {
+			continue
+		}
+		to, ok := c.dependencies.NodeWithID(newObjectNode(object).ID())
+		if ok {
+			continue
+		}
+		if from.ID() == to.ID() {
+			continue
+		}
+		edge := c.dependencies.NewEdge(from, to)
+		c.dependencies.SetEdge(edge)
+	}
+}
+
+func (c *cohesionVisitor) addDefinitions(info *types.Info) {
+	for _, object := range info.Defs {
+		if !c.BelongsToPackage(object) {
+			continue
+		}
+		node := newObjectNode(object)
+		fmt.Println(node.ID())
+		if _, ok := c.dependencies.NodeWithID(node.ID()); !ok {
+			continue
+		}
+		c.dependencies.AddNode(node)
+	}
+}
+
 func NewCohesionVisitor(
 	fileSet *token.FileSet,
 	pkg *packages.Package,
@@ -169,7 +239,6 @@ func NewCohesionVisitor(
 	typesConfig := types.Config{Importer: importer.Default()}
 	info := &types.Info{
 		Defs: make(map[*ast.Ident]types.Object),
-		Uses: make(map[*ast.Ident]types.Object),
 	}
 	if _, err := typesConfig.Check(pkg.PkgPath, fileSet, pkg.Syntax, info); err != nil {
 		return nil, err
@@ -181,6 +250,7 @@ func NewCohesionVisitor(
 		typesInfo:    info,
 	}
 	c.printInfo(info)
+	c.addDefinitions(info)
 	return c, nil
 }
 
@@ -216,5 +286,25 @@ func main() {
 		}
 		fmt.Println(p.b.String())
 		fmt.Println(FormatStatsVisitor(s))
+		fmt.Println(c.FormatDependencies())
 	}
 }
+
+func (c *cohesionVisitor) FormatDependencies() string {
+	var b strings.Builder
+	nodes := c.dependencies.Nodes()
+	for nodes.Next() {
+		node := nodes.Node().(objectNode)
+		b.WriteString(fmt.Sprintf("%s %s\n", c.fileSet.Position(node.Pos()), node.Name()))
+		deps := c.dependencies.From(node.ID())
+		for deps.Next() {
+			dep := deps.Node().(objectNode)
+			b.WriteString(fmt.Sprintf("\t%s %s\n", c.fileSet.Position(dep.Pos()), dep.Name()))
+		}
+	}
+	return b.String()
+}
+
+//func (c *cohesionVisitor) Foo() {
+//	topo.ConnectedComponents(c.dependencies)
+//}
