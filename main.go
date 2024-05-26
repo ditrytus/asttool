@@ -7,6 +7,8 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
+	"golang.org/x/tools/go/packages"
+	"gonum.org/v1/gonum/graph/simple"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,8 +52,18 @@ func (v *statsVisitor) Visit(node ast.Node) (w ast.Visitor) {
 	return v
 }
 
+type cohesionVisitor struct {
+	fileSet      *token.FileSet
+	pkg          *ast.Package
+	dependencies *simple.DirectedGraph
+}
+
+func (c cohesionVisitor) Visit(node ast.Node) (w ast.Visitor) {
+	return c
+}
+
 func main() {
-	dir := "/Users/jakubgruszecki/Documents/sarama"
+	dir := "/Users/jakubgruszecki/Documents/isbn"
 	fileSet := token.NewFileSet()
 	pkgs := make(map[string]*ast.Package)
 	if err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
@@ -72,6 +84,16 @@ func main() {
 	}); err != nil {
 		panic(err)
 	}
+	conf := &packages.Config{}
+	pkgsInfo, err := packages.Load(conf, dir)
+	if err != nil {
+		panic(err)
+	}
+	for _, pkg := range pkgsInfo {
+		for _, name := range pkg.Types.Scope().Names() {
+			fmt.Println(name)
+		}
+	}
 	var b strings.Builder
 	for _, pkg := range pkgs {
 		s := statsVisitor{}
@@ -81,7 +103,8 @@ func main() {
 		b.WriteString(fmt.Sprintf("  Types: %d\n", s.typeCount))
 		b.WriteString(fmt.Sprintf("  Consts: %d\n", s.constCount))
 		b.WriteString(fmt.Sprintf("  Vars: %d\n", s.varCount))
-
+		c := cohesionVisitor{dependencies: simple.NewDirectedGraph(), fileSet: fileSet}
+		ast.Walk(&c, pkg)
 	}
 	fmt.Println(b.String())
 }
