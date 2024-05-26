@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
-	"go/importer"
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
@@ -196,6 +195,9 @@ func (c *cohesionVisitor) BelongsToPackage(obj types.Object) bool {
 }
 
 func (c *cohesionVisitor) addUsages(info *types.Info) {
+	if c.referencingObject == nil {
+		return
+	}
 	if info.Uses == nil {
 		return
 	}
@@ -237,21 +239,23 @@ func NewCohesionVisitor(
 	fileSet *token.FileSet,
 	pkg *packages.Package,
 ) (*cohesionVisitor, error) {
-	typesConfig := types.Config{Importer: importer.Default()}
-	info := &types.Info{
-		Defs: make(map[*ast.Ident]types.Object),
-	}
-	if _, err := typesConfig.Check(pkg.PkgPath, fileSet, pkg.Syntax, info); err != nil {
-		return nil, err
-	}
+	//typesConfig := types.Config{Importer: importer.Default()}
+
+	//info := &types.Info{
+	//	Defs: make(map[*ast.Ident]types.Object),
+	//}
+	//if _, err := typesConfig.Check(pkg.PkgPath, fileSet, pkg.Syntax, info); err != nil {
+	//	return nil, err
+	//}
+	//p, _ := packages.Load(nil)
 	c := &cohesionVisitor{
 		fileSet:      fileSet,
 		pkg:          pkg,
 		dependencies: simple.NewDirectedGraph(),
-		typesInfo:    info,
+		typesInfo:    pkg.TypesInfo,
 	}
-	c.printInfo(info)
-	c.addDefinitions(info)
+	c.printInfo(c.typesInfo)
+	c.addDefinitions(c.typesInfo)
 	return c, nil
 }
 
@@ -262,9 +266,9 @@ func NodeString(fileSet *token.FileSet, ident any) string {
 }
 
 func main() {
-	dir := "/Users/jakubgruszecki/Documents/isbn/step_6"
+	dir := "/Users/jakubgruszecki/Documents/sarama"
 	fileSet := token.NewFileSet()
-	conf := &packages.Config{Mode: packages.LoadAllSyntax, Fset: fileSet, Dir: dir}
+	conf := &packages.Config{Mode: packages.LoadSyntax, Fset: fileSet, Dir: dir}
 	pkgs, err := packages.Load(conf, dir)
 	if err != nil {
 		panic(err)
