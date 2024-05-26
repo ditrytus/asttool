@@ -11,6 +11,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
 	"gonum.org/v1/gonum/graph/simple"
+	"gonum.org/v1/gonum/graph/topo"
 	"hash/fnv"
 	"strconv"
 	"strings"
@@ -81,7 +82,7 @@ func FormatStatsVisitor(v *statsVisitor) string {
 type cohesionVisitor struct {
 	fileSet      *token.FileSet
 	pkg          *packages.Package
-	dependencies *simple.DirectedGraph
+	dependencies *simple.UndirectedGraph
 	typesInfo    *types.Info
 
 	referencingObject types.Object
@@ -246,7 +247,7 @@ func NewCohesionVisitor(
 	c := &cohesionVisitor{
 		fileSet:      fileSet,
 		pkg:          pkg,
-		dependencies: simple.NewDirectedGraph(),
+		dependencies: simple.NewUndirectedGraph(),
 		typesInfo:    info,
 	}
 	c.printInfo(info)
@@ -287,6 +288,9 @@ func main() {
 		fmt.Println(p.b.String())
 		fmt.Println(FormatStatsVisitor(s))
 		fmt.Println(c.FormatDependencies())
+		fmt.Printf("Connected components: %d\n", c.ConnectedComponents())
+		fmt.Printf("Average degree: %f\n", c.AverageDegree())
+		fmt.Printf("Density: %f\n", c.Density())
 	}
 }
 
@@ -305,6 +309,23 @@ func (c *cohesionVisitor) FormatDependencies() string {
 	return b.String()
 }
 
-//func (c *cohesionVisitor) Foo() {
-//	topo.ConnectedComponents(c.dependencies)
-//}
+func (c *cohesionVisitor) ConnectedComponents() int {
+	return len(topo.ConnectedComponents(c.dependencies))
+}
+
+func (c *cohesionVisitor) AverageDegree() float64 {
+	var totalDegree int
+	nodes := c.dependencies.Nodes()
+	totalNodes := nodes.Len()
+	for nodes.Next() {
+		totalDegree += c.dependencies.From(nodes.Node().ID()).Len()
+	}
+	return float64(totalDegree) / float64(totalNodes)
+}
+
+func (c *cohesionVisitor) Density() float64 {
+	nodesCount := c.dependencies.Nodes().Len()
+	maxEdges := nodesCount * (nodesCount - 1) / 2
+	edgesCount := c.dependencies.Edges().Len()
+	return float64(edgesCount) / float64(maxEdges)
+}
