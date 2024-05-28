@@ -5,8 +5,6 @@ import (
 	"go/ast"
 	"go/token"
 	"golang.org/x/tools/go/packages"
-	"gonum.org/v1/gonum/graph/simple"
-	"gonum.org/v1/gonum/graph/topo"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,54 +60,4 @@ func main() {
 		fmt.Printf("Average degree: %f\n", c.AverageDegree())
 		fmt.Printf("Density: %f\n", c.Density())
 	}
-}
-
-func (c *cohesionAstVisitor) FormatDependencies() string {
-	var b strings.Builder
-	nodes := c.dependencies.Nodes()
-	for nodes.Next() {
-		node := nodes.Node().(objectNode)
-		b.WriteString(fmt.Sprintf("%s %s\n", c.fileSet.Position(node.Pos()), node.Name()))
-		deps := c.dependencies.From(node.ID())
-		for deps.Next() {
-			dep := deps.Node().(objectNode)
-			b.WriteString(fmt.Sprintf("\t%s %s\n", c.fileSet.Position(dep.Pos()), dep.Name()))
-		}
-	}
-	return b.String()
-}
-
-func (c *cohesionAstVisitor) ConnectedComponents() int {
-	return len(topo.ConnectedComponents(c.getUndirectedDependencies()))
-}
-
-func (c *cohesionAstVisitor) getUndirectedDependencies() *simple.UndirectedGraph {
-	undirected := simple.NewUndirectedGraph()
-	nodes := c.dependencies.Nodes()
-	for nodes.Next() {
-		undirected.AddNode(nodes.Node())
-	}
-	edges := c.dependencies.Edges()
-	for edges.Next() {
-		edge := edges.Edge()
-		undirected.SetEdge(undirected.NewEdge(edge.From(), edge.To()))
-	}
-	return undirected
-}
-
-func (c *cohesionAstVisitor) AverageDegree() float64 {
-	var totalDegree int
-	nodes := c.dependencies.Nodes()
-	totalNodes := nodes.Len()
-	for nodes.Next() {
-		totalDegree += c.dependencies.From(nodes.Node().ID()).Len()
-	}
-	return float64(totalDegree) / float64(totalNodes)
-}
-
-func (c *cohesionAstVisitor) Density() float64 {
-	nodesCount := c.dependencies.Nodes().Len()
-	maxEdges := nodesCount * (nodesCount - 1) / 2
-	edgesCount := c.dependencies.Edges().Len()
-	return float64(edgesCount) / float64(maxEdges)
 }
