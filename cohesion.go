@@ -1,4 +1,4 @@
-package main
+package asttool
 
 import (
 	"fmt"

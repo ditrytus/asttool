@@ -1,4 +1,4 @@
-package main
+package asttool
 
 import (
 	"fmt"
@@ -6,9 +6,25 @@ import (
 	"strings"
 )
 
+type FormatVisitor interface {
+	ast.Visitor
+	fmt.Stringer
+}
+
 type formatAstVisitor struct {
 	b      *strings.Builder
 	indent string
+}
+
+func NewFormatVisitor(indent string) FormatVisitor {
+	return &formatAstVisitor{
+		b:      &strings.Builder{},
+		indent: indent,
+	}
+}
+
+func (p *formatAstVisitor) String() string {
+	return p.b.String()
 }
 
 func (p *formatAstVisitor) Visit(node ast.Node) (w ast.Visitor) {

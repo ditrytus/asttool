@@ -1,4 +1,4 @@
-package main
+package asttool
 
 import (
 	"fmt"
@@ -7,35 +7,53 @@ import (
 	"strings"
 )
 
+type Stats struct {
+	FuncCount  int
+	TypeCount  int
+	ConstCount int
+	VarCount   int
+}
+
+type StatsVisitor interface {
+	ast.Visitor
+	Stats() Stats
+}
+
 type statsAstVisitor struct {
-	funcCount  int
-	typeCount  int
-	constCount int
-	varCount   int
+	s Stats
+}
+
+func NewStatsVisitor() StatsVisitor {
+	return &statsAstVisitor{}
+}
+
+func (v *statsAstVisitor) Stats() Stats {
+	return v.s
 }
 
 func (v *statsAstVisitor) Visit(node ast.Node) (w ast.Visitor) {
 	switch n := node.(type) {
 	case *ast.FuncDecl:
-		v.funcCount++
+		v.s.FuncCount++
 	case *ast.TypeSpec:
-		v.typeCount++
+		v.s.TypeCount++
 	case *ast.GenDecl:
 		switch n.Tok {
 		case token.CONST:
-			v.constCount++
+			v.s.ConstCount++
 		case token.VAR:
-			v.varCount++
+			v.s.VarCount++
 		}
 	}
 	return v
 }
 
-func FormatStatsVisitor(v *statsAstVisitor) string {
+func FormatStatsVisitor(v StatsVisitor) string {
+	s := v.Stats()
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Funcs: %d\n", v.funcCount))
-	b.WriteString(fmt.Sprintf("Types: %d\n", v.typeCount))
-	b.WriteString(fmt.Sprintf("Consts: %d\n", v.constCount))
-	b.WriteString(fmt.Sprintf("Vars: %d\n", v.varCount))
+	b.WriteString(fmt.Sprintf("Funcs: %d\n", s.FuncCount))
+	b.WriteString(fmt.Sprintf("Types: %d\n", s.TypeCount))
+	b.WriteString(fmt.Sprintf("Consts: %d\n", s.ConstCount))
+	b.WriteString(fmt.Sprintf("Vars: %d\n", s.VarCount))
 	return b.String()
 }
