@@ -108,7 +108,6 @@ func (o objectNode) ID() int64 {
 
 func newObjectNode(obj types.Object) objectNode {
 	hash := fnv.New64()
-	fmt.Println(obj.Id())
 	hash.Write([]byte(obj.Pkg().Path() + obj.Name() + strconv.Itoa(int(obj.Pos()))))
 	return objectNode{int64(hash.Sum64()), obj}
 }
@@ -126,19 +125,13 @@ func (c *cohesionVisitor) Visit(node ast.Node) (w ast.Visitor) {
 	}
 	if expr, ok := node.(ast.Expr); ok {
 		info := &types.Info{
-			//Defs:       make(map[*ast.Ident]types.Object),
 			Uses: make(map[*ast.Ident]types.Object),
-			//Types:      make(map[ast.Expr]types.TypeAndValue),
-			//Implicits:  make(map[ast.Node]types.Object),
-			//Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		}
 		err := types.CheckExpr(c.fileSet, c.pkg.Types, node.Pos(), expr, info)
 		if err != nil {
 			return c
 		}
 		c.addUsages(info)
-		fmt.Println(NodeString(c.fileSet, node))
-		c.printInfo(info)
 		return nil
 	}
 	return c
@@ -229,7 +222,6 @@ func (c *cohesionVisitor) addDefinitions(info *types.Info) {
 			continue
 		}
 		node := newObjectNode(object)
-		fmt.Println(node.ID())
 		if _, ok := c.dependencies.NodeWithID(node.ID()); !ok {
 			continue
 		}
@@ -241,22 +233,12 @@ func NewCohesionVisitor(
 	fileSet *token.FileSet,
 	pkg *packages.Package,
 ) (*cohesionVisitor, error) {
-	//typesConfig := types.Config{Importer: importer.Default()}
-
-	//info := &types.Info{
-	//	Defs: make(map[*ast.Ident]types.Object),
-	//}
-	//if _, err := typesConfig.Check(pkg.PkgPath, fileSet, pkg.Syntax, info); err != nil {
-	//	return nil, err
-	//}
-	//p, _ := packages.Load(nil)
 	c := &cohesionVisitor{
 		fileSet:      fileSet,
 		pkg:          pkg,
 		dependencies: simple.NewDirectedGraph(),
 		typesInfo:    pkg.TypesInfo,
 	}
-	c.printInfo(c.typesInfo)
 	c.addDefinitions(c.typesInfo)
 	return c, nil
 }
