@@ -14,7 +14,7 @@ type Stats struct {
 	VarCount   int
 }
 
-type StatsVisitor interface {
+type Visitor interface {
 	ast.Visitor
 	Stats() Stats
 }
@@ -23,7 +23,7 @@ type statsAstVisitor struct {
 	s Stats
 }
 
-func NewStatsVisitor() StatsVisitor {
+func NewStatsVisitor() Visitor {
 	return &statsAstVisitor{}
 }
 
@@ -43,12 +43,14 @@ func (v *statsAstVisitor) Visit(node ast.Node) (w ast.Visitor) {
 			v.s.ConstCount++
 		case token.VAR:
 			v.s.VarCount++
+		default:
+			return v
 		}
 	}
 	return v
 }
 
-func FormatStatsVisitor(v StatsVisitor) string {
+func FormatStatsVisitor(v Visitor) string {
 	s := v.Stats()
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Funcs: %d\n", s.FuncCount))

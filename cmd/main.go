@@ -57,7 +57,7 @@ func main() {
 		}
 		fmt.Println(p.String())
 		fmt.Println(stats.FormatStatsVisitor(s))
-		fmt.Println(c.FormatDependencies())
+		fmt.Println(cohesion.FormatDependencies(c))
 		fmt.Printf("Connected components: %d\n", c.ConnectedComponents())
 		fmt.Printf("Average degree: %f\n", c.AverageDegree())
 		fmt.Printf("Density: %f\n", c.Density())

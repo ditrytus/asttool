@@ -13,6 +13,15 @@ import (
 	"strings"
 )
 
+type Visitor interface {
+	ast.Visitor
+	ConnectedComponents() int
+	AverageDegree() float64
+	Density() float64
+
+	v()
+}
+
 type cohesionAstVisitor struct {
 	fileSet      *token.FileSet
 	pkg          *packages.Package
@@ -20,6 +29,22 @@ type cohesionAstVisitor struct {
 	typesInfo    *types.Info
 
 	referencingObject types.Object
+}
+
+func (c *cohesionAstVisitor) v() {}
+
+func NewCohesionVisitor(
+	fileSet *token.FileSet,
+	pkg *packages.Package,
+) (Visitor, error) {
+	c := &cohesionAstVisitor{
+		fileSet:      fileSet,
+		pkg:          pkg,
+		dependencies: simple.NewDirectedGraph(),
+		typesInfo:    pkg.TypesInfo,
+	}
+	c.addDefinitions(c.typesInfo)
+	return c, nil
 }
 
 type objectNode struct {
@@ -33,7 +58,7 @@ func (o objectNode) ID() int64 {
 
 func newObjectNode(obj types.Object) objectNode {
 	hash := fnv.New64()
-	hash.Write([]byte(obj.Pkg().Path() + obj.Name() + strconv.Itoa(int(obj.Pos()))))
+	_, _ = hash.Write([]byte(obj.Pkg().Path() + obj.Name() + strconv.Itoa(int(obj.Pos()))))
 	return objectNode{int64(hash.Sum64()), obj}
 }
 
@@ -154,21 +179,8 @@ func (c *cohesionAstVisitor) addDefinitions(info *types.Info) {
 	}
 }
 
-func NewCohesionVisitor(
-	fileSet *token.FileSet,
-	pkg *packages.Package,
-) (*cohesionAstVisitor, error) {
-	c := &cohesionAstVisitor{
-		fileSet:      fileSet,
-		pkg:          pkg,
-		dependencies: simple.NewDirectedGraph(),
-		typesInfo:    pkg.TypesInfo,
-	}
-	c.addDefinitions(c.typesInfo)
-	return c, nil
-}
-
-func (c *cohesionAstVisitor) FormatDependencies() string {
+func FormatDependencies(v Visitor) string {
+	c := v.(*cohesionAstVisitor)
 	var b strings.Builder
 	nodes := c.dependencies.Nodes()
 	for nodes.Next() {

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-type FormatVisitor interface {
+type Visitor interface {
 	ast.Visitor
 	fmt.Stringer
 }
@@ -16,7 +16,7 @@ type formatAstVisitor struct {
 	indent string
 }
 
-func NewFormatVisitor(indent string) FormatVisitor {
+func NewFormatVisitor(indent string) Visitor {
 	return &formatAstVisitor{
 		b:      &strings.Builder{},
 		indent: indent,
