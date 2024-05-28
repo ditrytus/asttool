@@ -1,7 +1,9 @@
 package main
 
 import (
-	asttool "cohesion"
+	"cohesion/cohesion"
+	"cohesion/format"
+	"cohesion/stats"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -42,9 +44,9 @@ func main() {
 		if len(pkg.Errors) > 0 {
 			packages.PrintErrors([]*packages.Package{pkg})
 		}
-		s := asttool.NewStatsVisitor()
-		p := asttool.NewFormatVisitor("  ")
-		c, err := asttool.NewCohesionVisitor(fileSet, pkg)
+		s := stats.NewStatsVisitor()
+		p := format.NewFormatVisitor("  ")
+		c, err := cohesion.NewCohesionVisitor(fileSet, pkg)
 		if err != nil {
 			panic(err)
 		}
@@ -54,7 +56,7 @@ func main() {
 			ast.Walk(c, file)
 		}
 		fmt.Println(p.String())
-		fmt.Println(asttool.FormatStatsVisitor(s))
+		fmt.Println(stats.FormatStatsVisitor(s))
 		fmt.Println(c.FormatDependencies())
 		fmt.Printf("Connected components: %d\n", c.ConnectedComponents())
 		fmt.Printf("Average degree: %f\n", c.AverageDegree())
