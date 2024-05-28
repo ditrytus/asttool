@@ -8,7 +8,6 @@ import (
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/go/types/typeutil"
 	"gonum.org/v1/gonum/graph/simple"
 	"gonum.org/v1/gonum/graph/topo"
 	"hash/fnv"
@@ -18,19 +17,19 @@ import (
 	"strings"
 )
 
-type printVisitor struct {
+type formatAstVisitor struct {
 	b      *strings.Builder
 	indent string
 }
 
-func (p *printVisitor) Visit(node ast.Node) (w ast.Visitor) {
+func (p *formatAstVisitor) Visit(node ast.Node) (w ast.Visitor) {
 	if node == nil {
 		return nil
 	}
 	p.b.WriteString(p.indent)
 	p.b.WriteString(fmt.Sprintf("%T %s", node, shortNodeString(node)))
 	p.b.WriteString("\n")
-	return &printVisitor{b: p.b, indent: p.indent + "  "}
+	return &formatAstVisitor{b: p.b, indent: p.indent + "  "}
 }
 
 func shortNodeString(node ast.Node) any {
@@ -47,14 +46,14 @@ func shortNodeString(node ast.Node) any {
 	return ""
 }
 
-type statsVisitor struct {
+type statsAstVisitor struct {
 	funcCount  int
 	typeCount  int
 	constCount int
 	varCount   int
 }
 
-func (v *statsVisitor) Visit(node ast.Node) (w ast.Visitor) {
+func (v *statsAstVisitor) Visit(node ast.Node) (w ast.Visitor) {
 	switch n := node.(type) {
 	case *ast.FuncDecl:
 		v.funcCount++
@@ -71,7 +70,7 @@ func (v *statsVisitor) Visit(node ast.Node) (w ast.Visitor) {
 	return v
 }
 
-func FormatStatsVisitor(v *statsVisitor) string {
+func FormatStatsVisitor(v *statsAstVisitor) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Funcs: %d\n", v.funcCount))
 	b.WriteString(fmt.Sprintf("Types: %d\n", v.typeCount))
@@ -80,21 +79,13 @@ func FormatStatsVisitor(v *statsVisitor) string {
 	return b.String()
 }
 
-type cohesionVisitor struct {
+type cohesionAstVisitor struct {
 	fileSet      *token.FileSet
 	pkg          *packages.Package
 	dependencies *simple.DirectedGraph
 	typesInfo    *types.Info
 
 	referencingObject types.Object
-}
-
-type typeNode struct {
-	types.Type
-}
-
-func (t typeNode) ID() int64 {
-	return int64(typeutil.MakeHasher().Hash(t.Type))
 }
 
 type objectNode struct {
@@ -112,7 +103,7 @@ func newObjectNode(obj types.Object) objectNode {
 	return objectNode{int64(hash.Sum64()), obj}
 }
 
-func (c *cohesionVisitor) Visit(node ast.Node) (w ast.Visitor) {
+func (c *cohesionAstVisitor) Visit(node ast.Node) (w ast.Visitor) {
 	switch n := node.(type) {
 	case *ast.FuncDecl:
 		if obj, ok := c.typesInfo.Defs[n.Name]; ok {
@@ -137,8 +128,8 @@ func (c *cohesionVisitor) Visit(node ast.Node) (w ast.Visitor) {
 	return c
 }
 
-func (c *cohesionVisitor) childVisitor(obj types.Object) *cohesionVisitor {
-	return &cohesionVisitor{
+func (c *cohesionAstVisitor) childVisitor(obj types.Object) *cohesionAstVisitor {
+	return &cohesionAstVisitor{
 		fileSet:      c.fileSet,
 		pkg:          c.pkg,
 		dependencies: c.dependencies,
@@ -148,11 +139,11 @@ func (c *cohesionVisitor) childVisitor(obj types.Object) *cohesionVisitor {
 	}
 }
 
-func (c *cohesionVisitor) printInfo(info *types.Info) {
+func (c *cohesionAstVisitor) debugPrintInfo(info *types.Info) {
 	if info.Defs != nil {
 		fmt.Println("Defs:")
 		for ident, object := range info.Defs {
-			if c.BelongsToPackage(object) {
+			if c.belongsToPackage(object) {
 				fmt.Println(c.fileSet.Position(ident.Pos()), ident.Name, object)
 			}
 		}
@@ -160,7 +151,7 @@ func (c *cohesionVisitor) printInfo(info *types.Info) {
 	if info.Uses != nil {
 		fmt.Println("Uses:")
 		for ident, object := range info.Uses {
-			if c.BelongsToPackage(object) {
+			if c.belongsToPackage(object) {
 				fmt.Println(c.fileSet.Position(ident.Pos()), ident.Name, object)
 			}
 		}
@@ -168,7 +159,7 @@ func (c *cohesionVisitor) printInfo(info *types.Info) {
 	if info.Implicits != nil {
 		fmt.Println("Implicits:")
 		for ident, object := range info.Implicits {
-			if c.BelongsToPackage(object) {
+			if c.belongsToPackage(object) {
 				fmt.Println(c.fileSet.Position(ident.Pos()), ident, object)
 			}
 		}
@@ -176,7 +167,7 @@ func (c *cohesionVisitor) printInfo(info *types.Info) {
 	fmt.Println()
 }
 
-func (c *cohesionVisitor) BelongsToPackage(obj types.Object) bool {
+func (c *cohesionAstVisitor) belongsToPackage(obj types.Object) bool {
 	if obj == nil || obj.Pkg() == nil {
 		return false
 	}
@@ -189,7 +180,7 @@ func (c *cohesionVisitor) BelongsToPackage(obj types.Object) bool {
 	return false
 }
 
-func (c *cohesionVisitor) addUsages(info *types.Info) {
+func (c *cohesionAstVisitor) addUsages(info *types.Info) {
 	if c.referencingObject == nil {
 		return
 	}
@@ -197,7 +188,7 @@ func (c *cohesionVisitor) addUsages(info *types.Info) {
 		return
 	}
 	for _, object := range info.Uses {
-		if !c.BelongsToPackage(object) {
+		if !c.belongsToPackage(object) {
 			continue
 		}
 		from, ok := c.dependencies.NodeWithID(newObjectNode(c.referencingObject).ID())
@@ -216,9 +207,9 @@ func (c *cohesionVisitor) addUsages(info *types.Info) {
 	}
 }
 
-func (c *cohesionVisitor) addDefinitions(info *types.Info) {
+func (c *cohesionAstVisitor) addDefinitions(info *types.Info) {
 	for _, object := range info.Defs {
-		if !c.BelongsToPackage(object) {
+		if !c.belongsToPackage(object) {
 			continue
 		}
 		node := newObjectNode(object)
@@ -232,8 +223,8 @@ func (c *cohesionVisitor) addDefinitions(info *types.Info) {
 func NewCohesionVisitor(
 	fileSet *token.FileSet,
 	pkg *packages.Package,
-) (*cohesionVisitor, error) {
-	c := &cohesionVisitor{
+) (*cohesionAstVisitor, error) {
+	c := &cohesionAstVisitor{
 		fileSet:      fileSet,
 		pkg:          pkg,
 		dependencies: simple.NewDirectedGraph(),
@@ -281,8 +272,8 @@ func main() {
 		if len(pkg.Errors) > 0 {
 			packages.PrintErrors([]*packages.Package{pkg})
 		}
-		s := &statsVisitor{}
-		p := &printVisitor{&strings.Builder{}, ""}
+		s := &statsAstVisitor{}
+		p := &formatAstVisitor{&strings.Builder{}, ""}
 		c, err := NewCohesionVisitor(fileSet, pkg)
 		if err != nil {
 			panic(err)
@@ -301,7 +292,7 @@ func main() {
 	}
 }
 
-func (c *cohesionVisitor) FormatDependencies() string {
+func (c *cohesionAstVisitor) FormatDependencies() string {
 	var b strings.Builder
 	nodes := c.dependencies.Nodes()
 	for nodes.Next() {
@@ -316,11 +307,11 @@ func (c *cohesionVisitor) FormatDependencies() string {
 	return b.String()
 }
 
-func (c *cohesionVisitor) ConnectedComponents() int {
+func (c *cohesionAstVisitor) ConnectedComponents() int {
 	return len(topo.ConnectedComponents(c.getUndirectedDependencies()))
 }
 
-func (c *cohesionVisitor) getUndirectedDependencies() *simple.UndirectedGraph {
+func (c *cohesionAstVisitor) getUndirectedDependencies() *simple.UndirectedGraph {
 	undirected := simple.NewUndirectedGraph()
 	nodes := c.dependencies.Nodes()
 	for nodes.Next() {
@@ -334,7 +325,7 @@ func (c *cohesionVisitor) getUndirectedDependencies() *simple.UndirectedGraph {
 	return undirected
 }
 
-func (c *cohesionVisitor) AverageDegree() float64 {
+func (c *cohesionAstVisitor) AverageDegree() float64 {
 	var totalDegree int
 	nodes := c.dependencies.Nodes()
 	totalNodes := nodes.Len()
@@ -344,7 +335,7 @@ func (c *cohesionVisitor) AverageDegree() float64 {
 	return float64(totalDegree) / float64(totalNodes)
 }
 
-func (c *cohesionVisitor) Density() float64 {
+func (c *cohesionAstVisitor) Density() float64 {
 	nodesCount := c.dependencies.Nodes().Len()
 	maxEdges := nodesCount * (nodesCount - 1) / 2
 	edgesCount := c.dependencies.Edges().Len()
