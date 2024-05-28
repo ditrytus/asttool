@@ -1,10 +1,8 @@
 package stats
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
-	"strings"
 )
 
 type Stats struct {
@@ -48,14 +46,4 @@ func (v *statsAstVisitor) Visit(node ast.Node) (w ast.Visitor) {
 		}
 	}
 	return v
-}
-
-func FormatStatsVisitor(v Visitor) string {
-	s := v.Stats()
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Funcs: %d\n", s.FuncCount))
-	b.WriteString(fmt.Sprintf("Types: %d\n", s.TypeCount))
-	b.WriteString(fmt.Sprintf("Consts: %d\n", s.ConstCount))
-	b.WriteString(fmt.Sprintf("Vars: %d\n", s.VarCount))
-	return b.String()
 }
