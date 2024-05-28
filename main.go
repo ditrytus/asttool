@@ -12,6 +12,8 @@ import (
 	"gonum.org/v1/gonum/graph/simple"
 	"gonum.org/v1/gonum/graph/topo"
 	"hash/fnv"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -266,18 +268,37 @@ func NodeString(fileSet *token.FileSet, ident any) string {
 }
 
 func main() {
-	dir := "/Users/jakubgruszecki/Documents/sarama"
+	dir := "/Users/jakubgruszecki/Documents/isbn"
+	var pkgs []*packages.Package
 	fileSet := token.NewFileSet()
-	conf := &packages.Config{Mode: packages.LoadSyntax, Fset: fileSet, Dir: dir}
-	pkgs, err := packages.Load(conf, dir)
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			return nil
+		}
+		conf := &packages.Config{Mode: packages.LoadSyntax, Fset: fileSet, Dir: path}
+		dirPkgs, err := packages.Load(conf, path)
+		if err != nil {
+			return err
+		}
+		for _, pkg := range dirPkgs {
+			if len(pkg.Errors) == 1 && pkg.Errors[0].Kind == packages.ListError {
+				continue
+			}
+			pkgs = append(pkgs, pkg)
+		}
+		return nil
+	})
 	if err != nil {
 		panic(err)
 	}
 	for _, pkg := range pkgs {
-		if len(pkg.Errors) > 0 {
-			panic(pkg.Errors[0])
-		}
 		fmt.Println(pkg.PkgPath)
+		if len(pkg.Errors) > 0 {
+			packages.PrintErrors([]*packages.Package{pkg})
+		}
 		s := &statsVisitor{}
 		p := &printVisitor{&strings.Builder{}, ""}
 		c, err := NewCohesionVisitor(fileSet, pkg)
