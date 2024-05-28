@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
-	"go/format"
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
@@ -232,12 +230,6 @@ func NewCohesionVisitor(
 	}
 	c.addDefinitions(c.typesInfo)
 	return c, nil
-}
-
-func NodeString(fileSet *token.FileSet, ident any) string {
-	var buff bytes.Buffer
-	format.Node(&buff, fileSet, ident)
-	return buff.String()
 }
 
 func main() {
