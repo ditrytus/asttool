@@ -1,7 +1,6 @@
 package cohesion
 
 import (
-	"fmt"
 	"gonum.org/v1/gonum/graph"
 	"image/color"
 	"log"
@@ -60,11 +59,11 @@ func (p render) Plot(c draw.Canvas, plt *plot.Plot) {
 		ids = make([]string, 0, nodes.Len())
 	}
 	for nodes.Next() {
-		u := nodes.Node()
+		u := nodes.Node().(objectNode)
 		uid := u.ID()
 		ur2 := p.GraphR2.LayoutNodeR2(uid)
 		xys = append(xys, plotter.XY(ur2.Coord2))
-		ids = append(ids, fmt.Sprint(uid))
+		ids = append(ids, u.Name())
 		to := p.GraphR2.From(uid)
 		for to.Next() {
 			v := to.Node()
