@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
+	"gonum.org/v1/gonum/graph"
 	"gonum.org/v1/gonum/graph/simple"
 	"gonum.org/v1/gonum/graph/topo"
 	"hash/fnv"
@@ -179,7 +180,11 @@ func (c *cohesionAstVisitor) addDefinitions(info *types.Info) {
 }
 
 func (c *cohesionAstVisitor) ConnectedComponents() int {
-	return len(topo.ConnectedComponents(c.getUndirectedDependencies()))
+	return len(c.connectedComponents())
+}
+
+func (c *cohesionAstVisitor) connectedComponents() [][]graph.Node {
+	return topo.ConnectedComponents(c.getUndirectedDependencies())
 }
 
 func (c *cohesionAstVisitor) getUndirectedDependencies() *simple.UndirectedGraph {
