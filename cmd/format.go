@@ -8,6 +8,10 @@ import (
 	"go/ast"
 )
 
+func init() {
+	formatCmd.Flags().StringVarP(&indent, "indent", "i", "  ", "indentation string")
+}
+
 var (
 	indent string
 
@@ -26,13 +30,10 @@ var (
 				for _, file := range pkg.Syntax {
 					ast.Walk(v, file)
 				}
-				fmt.Println(v.String())
+				s := format.FormatOutput(v)
+				fmt.Println(s)
 				fmt.Println()
 			}
 		},
 	}
 )
-
-func init() {
-	formatCmd.Flags().StringVarP(&indent, "indent", "i", "  ", "indentation string")
-}

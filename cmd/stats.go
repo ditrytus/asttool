@@ -23,11 +23,8 @@ var statsCmd = &cobra.Command{
 			for _, file := range pkg.Syntax {
 				ast.Walk(v, file)
 			}
-			s := v.Stats()
-			fmt.Printf("Funcs: %d\n", s.FuncCount)
-			fmt.Printf("Types: %d\n", s.TypeCount)
-			fmt.Printf("Consts: %d\n", s.ConstCount)
-			fmt.Printf("Vars: %d\n", s.VarCount)
+			s := stats.FormatOutputStats(v)
+			fmt.Println(s)
 			fmt.Println()
 		}
 	},

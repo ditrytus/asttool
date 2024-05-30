@@ -26,9 +26,8 @@ var cohesionCmd = &cobra.Command{
 			for _, file := range pkg.Syntax {
 				ast.Walk(v, file)
 			}
-			fmt.Printf("Connected components: %d\n", v.ConnectedComponents())
-			fmt.Printf("Average degree: %f\n", v.AverageDegree())
-			fmt.Printf("Density: %f\n", v.Density())
+			s := cohesion.FormatCohesionStats(v)
+			fmt.Println(s)
 			fmt.Println()
 		}
 	},

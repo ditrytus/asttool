@@ -10,7 +10,6 @@ import (
 	"gonum.org/v1/gonum/graph/topo"
 	"hash/fnv"
 	"strconv"
-	"strings"
 )
 
 type Visitor interface {
@@ -177,22 +176,6 @@ func (c *cohesionAstVisitor) addDefinitions(info *types.Info) {
 		}
 		c.dependencies.AddNode(node)
 	}
-}
-
-func FormatDependencies(v Visitor) string {
-	c := v.(*cohesionAstVisitor)
-	var b strings.Builder
-	nodes := c.dependencies.Nodes()
-	for nodes.Next() {
-		node := nodes.Node().(objectNode)
-		b.WriteString(fmt.Sprintf("%s %s\n", c.fileSet.Position(node.Pos()), node.Name()))
-		deps := c.dependencies.From(node.ID())
-		for deps.Next() {
-			dep := deps.Node().(objectNode)
-			b.WriteString(fmt.Sprintf("\t%s %s\n", c.fileSet.Position(dep.Pos()), dep.Name()))
-		}
-	}
-	return b.String()
 }
 
 func (c *cohesionAstVisitor) ConnectedComponents() int {
