@@ -7,8 +7,6 @@ import (
 )
 
 var (
-	dir string
-
 	rootCmd = &cobra.Command{
 		Use:   "asttool",
 		Short: "A set of tools for working with Go AST",
@@ -27,7 +25,6 @@ func printErrorAndExit(err error) {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&dir, "dir", "d", ".", "directory to analyze")
 	rootCmd.AddCommand(formatCmd)
 	rootCmd.AddCommand(statsCmd)
 	rootCmd.AddCommand(cohesionCmd)

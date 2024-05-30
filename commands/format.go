@@ -20,6 +20,7 @@ var (
 		Use:   "format",
 		Short: "print Go source code AST in a formatted way",
 		Run: func(cmd *cobra.Command, args []string) {
+			dir := args[0]
 			asttool.NewAstTool(
 				asttool.NewDirPackageLoader(dir),
 				func(_ *token.FileSet, _ *packages.Package) ast.Visitor {

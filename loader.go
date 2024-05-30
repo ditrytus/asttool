@@ -20,13 +20,17 @@ func NewDirPackageLoader(dir string) PackageLoader {
 }
 
 func (d *dirPackageLoader) Load() ([]*packages.Package, *token.FileSet, error) {
+	absDir, err := filepath.Abs(d.dir)
+	if err != nil {
+		return nil, nil, err
+	}
 	var pkgs []*packages.Package
 	fileSet := token.NewFileSet()
-	err := filepath.Walk(d.dir, func(path string, info os.FileInfo, err error) error {
+	err = filepath.WalkDir(absDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() {
+		if !d.IsDir() {
 			return nil
 		}
 		conf := &packages.Config{Mode: packages.LoadSyntax, Fset: fileSet, Dir: path}

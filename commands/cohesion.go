@@ -13,6 +13,7 @@ var cohesionCmd = &cobra.Command{
 	Use:   "cohesion",
 	Short: "Print cohesion metrics for Go source code",
 	Run: func(cmd *cobra.Command, args []string) {
+		dir := args[0]
 		asttool.NewAstTool(
 			asttool.NewDirPackageLoader(dir),
 			func(files *token.FileSet, pkg *packages.Package) ast.Visitor {
