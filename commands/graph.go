@@ -14,7 +14,7 @@ func init() {
 		&outputGraph,
 		"output",
 		"o",
-		"graph.png",
+		".",
 		"output file path to save png file to",
 	)
 }
