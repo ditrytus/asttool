@@ -1,9 +1,8 @@
-package cmd
+package commands
 
 import (
-	asttool "cohesion"
-	"cohesion/cohesion"
-	"cohesion/loader"
+	"asttool"
+	"asttool/cohesion"
 	"github.com/spf13/cobra"
 	"go/ast"
 	"go/token"
@@ -15,7 +14,7 @@ var cohesionCmd = &cobra.Command{
 	Short: "Print cohesion metrics for Go source code",
 	Run: func(cmd *cobra.Command, args []string) {
 		asttool.NewAstTool(
-			loader.NewDirPackageLoader(dir),
+			asttool.NewDirPackageLoader(dir),
 			func(files *token.FileSet, pkg *packages.Package) ast.Visitor {
 				visitor, err := cohesion.NewCohesionVisitor(files, pkg)
 				if err != nil {

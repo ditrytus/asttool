@@ -1,4 +1,4 @@
-module cohesion
+module asttool
 
 go 1.22
 

@@ -1,4 +1,4 @@
-package loader
+package asttool
 
 import (
 	"go/token"

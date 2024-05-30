@@ -1,7 +1,6 @@
 package asttool
 
 import (
-	"cohesion/loader"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -9,13 +8,13 @@ import (
 )
 
 type AstTool struct {
-	loader         loader.PackageLoader
+	loader         PackageLoader
 	visitorFactory func(files *token.FileSet, pkg *packages.Package) ast.Visitor
 	formatOutput   func(visitor ast.Visitor) string
 }
 
 func NewAstTool(
-	loader loader.PackageLoader,
+	loader PackageLoader,
 	visitorFactory func(files *token.FileSet, pkg *packages.Package) ast.Visitor,
 	formatOutput func(visitor ast.Visitor) string,
 ) *AstTool {

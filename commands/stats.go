@@ -1,9 +1,8 @@
-package cmd
+package commands
 
 import (
-	asttool "cohesion"
-	"cohesion/loader"
-	"cohesion/stats"
+	"asttool"
+	"asttool/stats"
 	"github.com/spf13/cobra"
 	"go/ast"
 	"go/token"
@@ -15,12 +14,12 @@ var statsCmd = &cobra.Command{
 	Short: "Print statistics about Go source code",
 	Run: func(cmd *cobra.Command, args []string) {
 		asttool.NewAstTool(
-			loader.NewDirPackageLoader(dir),
+			asttool.NewDirPackageLoader(dir),
 			func(_ *token.FileSet, _ *packages.Package) ast.Visitor {
 				return stats.NewStatsVisitor()
 			},
 			func(visitor ast.Visitor) string {
-				return stats.FormatOutputStats(visitor.(stats.Visitor).Stats())
+				return stats.FormatOutputStats(visitor.(stats.Visitor))
 			},
 		).Run()
 	},

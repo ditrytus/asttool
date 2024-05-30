@@ -1,9 +1,8 @@
-package cmd
+package commands
 
 import (
-	asttool "cohesion"
-	"cohesion/format"
-	"cohesion/loader"
+	"asttool"
+	"asttool/format"
 	"github.com/spf13/cobra"
 	"go/ast"
 	"go/token"
@@ -22,7 +21,7 @@ var (
 		Short: "print Go source code AST in a formatted way",
 		Run: func(cmd *cobra.Command, args []string) {
 			asttool.NewAstTool(
-				loader.NewDirPackageLoader(dir),
+				asttool.NewDirPackageLoader(dir),
 				func(_ *token.FileSet, _ *packages.Package) ast.Visitor {
 					return format.NewFormatVisitor(indent)
 				},
