@@ -2,6 +2,8 @@ package cohesion
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -27,4 +29,18 @@ func FormatCohesionStats(v Visitor) string {
 	b.WriteString(fmt.Sprintf("Average degree: %f\n", v.AverageDegree()))
 	b.WriteString(fmt.Sprintf("Density: %f\n", v.Density()))
 	return b.String()
+}
+
+func FormatCohesionGraph(v Visitor, output string) string {
+	absPath, err := filepath.Abs(output)
+	if err != nil {
+		panic(err)
+	}
+	if err := os.MkdirAll(absPath, os.ModePerm); err != nil {
+		panic(err)
+	}
+	visitor := v.(*cohesionAstVisitor)
+	graphPath := filepath.Join(absPath, visitor.pkg.Name+".png")
+	drawGraph(visitor.dependencies, graphPath)
+	return graphPath
 }

@@ -9,14 +9,9 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-func init() {
-	cohesionCmd.AddCommand(deptsCmd)
-	cohesionCmd.AddCommand(graphCmd)
-}
-
-var cohesionCmd = &cobra.Command{
-	Use:   "cohesion",
-	Short: "Print cohesion metrics for Go source code",
+var deptsCmd = &cobra.Command{
+	Use:   "dependencies",
+	Short: "Print graph of internal dependencies of a package",
 	Run: func(cmd *cobra.Command, args []string) {
 		dir := args[0]
 		asttool.NewAstTool(
@@ -29,7 +24,7 @@ var cohesionCmd = &cobra.Command{
 				return visitor
 			},
 			func(visitor ast.Visitor) string {
-				return cohesion.FormatCohesionStats(visitor.(cohesion.Visitor))
+				return cohesion.FormatDependencies(visitor.(cohesion.Visitor))
 			},
 		).Run()
 	},
