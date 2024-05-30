@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	asttool "cohesion"
 	"cohesion/format"
 	"cohesion/loader"
-	"fmt"
 	"github.com/spf13/cobra"
 	"go/ast"
+	"go/token"
+	"golang.org/x/tools/go/packages"
 )
 
 func init() {
@@ -19,21 +21,15 @@ var (
 		Use:   "format",
 		Short: "print Go source code AST in a formatted way",
 		Run: func(cmd *cobra.Command, args []string) {
-			loader := loader.NewDirPackageLoader(dir)
-			pkgs, _, err := loader.Load()
-			if err != nil {
-				panic(err)
-			}
-			for _, pkg := range pkgs {
-				fmt.Println(pkg.PkgPath)
-				v := format.NewFormatVisitor(indent)
-				for _, file := range pkg.Syntax {
-					ast.Walk(v, file)
-				}
-				s := format.FormatOutput(v)
-				fmt.Println(s)
-				fmt.Println()
-			}
+			asttool.NewAstTool(
+				loader.NewDirPackageLoader(dir),
+				func(_ *token.FileSet, _ *packages.Package) ast.Visitor {
+					return format.NewFormatVisitor(indent)
+				},
+				func(visitor ast.Visitor) string {
+					return format.FormatOutput(visitor.(format.Visitor))
+				},
+			).Run()
 		},
 	}
 )
