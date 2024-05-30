@@ -33,7 +33,7 @@ func drawGraph(g graph.Graph, output string) {
 	p.HideAxes()
 
 	// Render graph on save.
-	err := p.Save(10*vg.Centimeter, 10*vg.Centimeter, output)
+	err := p.Save(15*vg.Centimeter, 15*vg.Centimeter, output)
 	if err != nil {
 		log.Fatal(err)
 	}
